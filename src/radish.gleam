@@ -43,39 +43,33 @@ pub type ExpireCondition {
 }
 
 pub fn start(host: String, port: Int, options: List(StartOption)) {
-  let #(timeout, options) = case
-    list.pop_map(options, fn(item) {
+  let timeout =
+    list.find_map(options, fn(item) {
       case item {
         Timeout(timeout) -> Ok(timeout)
         _ -> Error(Nil)
       }
     })
-  {
-    Ok(result) -> result
-    Error(Nil) -> #(1024, options)
-  }
+    |> result.unwrap(1024)
 
-  let #(pool_size, options) = case
-    list.pop_map(options, fn(item) {
+  let pool_size =
+    list.find_map(options, fn(item) {
       case item {
         PoolSize(pool_size) -> Ok(pool_size)
         _ -> Error(Nil)
       }
     })
-  {
-    Ok(result) -> result
-    Error(Nil) -> #(3, options)
-  }
+    |> result.unwrap(3)
 
   use client <- result.then(client.start(host, port, timeout, pool_size))
 
   let options =
-    list.map(options, fn(item) {
+    list.filter_map(options, fn(item) {
       case item {
-        Auth(password) -> command.Auth(password)
+        Auth(password) -> Ok(command.Auth(password))
         AuthWithUsername(username, password) ->
-          command.AuthWithUsername(username, password)
-        Timeout(_) | PoolSize(_) -> command.AuthWithUsername("", "")
+          Ok(command.AuthWithUsername(username, password))
+        Timeout(_) | PoolSize(_) -> Error(Nil)
       }
     })
 

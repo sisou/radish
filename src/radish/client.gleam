@@ -8,7 +8,7 @@ import radish/resp.{type Value}
 import radish/tcp
 
 import lifeguard
-import mug.{type Error}
+import mug
 
 pub type Message {
   Command(BitArray, process.Subject(Result(List(Value), error.Error)), Int)
