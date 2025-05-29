@@ -18,7 +18,7 @@ fn get_test_client(next) {
 pub fn roundtrip_test() {
   use client <- get_test_client()
 
-  // let assert Error(error.NotFound) = client |> radish.get("key", 1000)
+  let assert Error(error.NotFound) = client |> radish.get("key", 1000)
 
   let assert Ok("OK") =
     client
@@ -27,5 +27,5 @@ pub fn roundtrip_test() {
   let assert Ok("value") = client |> radish.get("key", 1000)
   let assert Error(error.NotFound) = client |> radish.get("key2", 1000)
   let assert Ok(1) = client |> radish.del(["key"], 1000)
-  // let assert Error(error.NotFound) = client |> radish.get("key", 1000)
+  let assert Error(error.NotFound) = client |> radish.get("key", 1000)
 }
