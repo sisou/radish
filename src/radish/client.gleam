@@ -28,9 +28,10 @@ pub fn start(
   port: Int,
   timeout: Int,
   pool_size: Int,
-) -> Result(lifeguard.Pool(Message), lifeguard.StartError) {
-  lifeguard.new(worker_spec(host, port, timeout))
-  |> lifeguard.with_size(pool_size)
+) -> Result(lifeguard.Pool(Message), actor.StartError) {
+  worker_spec(host, port, timeout)
+  |> lifeguard.on_message(handle_message)
+  |> lifeguard.size(pool_size)
   |> lifeguard.start(timeout)
 }
 
@@ -38,20 +39,23 @@ fn worker_spec(
   host: String,
   port: Int,
   timeout: Int,
-) -> lifeguard.Spec(mug.Socket, Message) {
-  lifeguard.Spec(
-    init: fn(selector) {
-      case tcp.connect(host, port, timeout) {
-        Ok(socket) -> actor.Ready(socket, selector)
-        Error(_) -> actor.Failed("Unable to connect to Redis server")
+) -> lifeguard.Builder(mug.Socket, Message) {
+  lifeguard.new_with_initialiser(timeout, fn(self) {
+    let selector =
+      process.new_selector()
+      |> process.select(self)
+    case tcp.connect(host, port, timeout) {
+      Ok(socket) -> {
+        lifeguard.initialised(socket)
+        |> lifeguard.selecting(selector)
+        |> Ok
       }
-    },
-    init_timeout: timeout,
-    loop: handle_message,
-  )
+      Error(_) -> Error("Unable to connect to Redis server")
+    }
+  })
 }
 
-fn handle_message(msg: Message, socket: mug.Socket) {
+fn handle_message(socket: mug.Socket, msg: Message) {
   case msg {
     Command(cmd, reply_with, timeout) -> {
       case tcp.send(socket, cmd) {
@@ -66,7 +70,7 @@ fn handle_message(msg: Message, socket: mug.Socket) {
             Error(error) -> {
               let _ = mug.shutdown(socket)
               actor.send(reply_with, Error(error))
-              actor.Stop(process.Abnormal("TCP Error"))
+              actor.stop_abnormal("TCP Error")
             }
           }
         }
@@ -74,7 +78,7 @@ fn handle_message(msg: Message, socket: mug.Socket) {
         Error(error) -> {
           let _ = mug.shutdown(socket)
           actor.send(reply_with, Error(error.TCPError(error)))
-          actor.Stop(process.Abnormal("TCP Error"))
+          actor.stop_abnormal("TCP Error")
         }
       }
     }
@@ -93,7 +97,7 @@ fn handle_message(msg: Message, socket: mug.Socket) {
             Error(error) -> {
               let _ = mug.shutdown(socket)
               actor.send(reply_with, Error(error))
-              actor.Stop(process.Abnormal("TCP Error"))
+              actor.stop_abnormal("TCP Error")
             }
           }
         }
@@ -101,7 +105,7 @@ fn handle_message(msg: Message, socket: mug.Socket) {
         Error(error) -> {
           let _ = mug.shutdown(socket)
           actor.send(reply_with, Error(error.TCPError(error)))
-          actor.Stop(process.Abnormal("TCP Error"))
+          actor.stop_abnormal("TCP Error")
         }
       }
     }
@@ -118,7 +122,7 @@ fn handle_message(msg: Message, socket: mug.Socket) {
         Error(error) -> {
           let _ = mug.shutdown(socket)
           actor.send(reply_with, Error(error))
-          actor.Stop(process.Abnormal("TCP Error"))
+          actor.stop_abnormal("TCP Error")
         }
       }
     }

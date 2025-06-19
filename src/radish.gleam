@@ -1,6 +1,5 @@
 //// All timeouts are in milliseconds
 
-import gleam/erlang/process
 import gleam/float
 import gleam/int
 import gleam/list
@@ -77,10 +76,11 @@ pub fn start(host: String, port: Int, options: List(StartOption)) {
     utils.execute(client, command.hello(3, options), timeout)
     |> result.map_error(fn(error) {
       case error {
-        error.ServerError(error) -> actor.InitFailed(process.Abnormal(error))
-        _ -> actor.InitFailed(process.Abnormal("Failed to say hello"))
+        error.ServerError(error) -> {
+          actor.InitFailed(error)
+        }
+        _ -> actor.InitFailed("Failed to say hello")
       }
-      |> lifeguard.WorkerStartError
     }),
   )
 
