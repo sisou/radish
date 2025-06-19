@@ -1,5 +1,4 @@
 import gleam/erlang/process
-import gleam/function
 import gleam/list
 import gleam/result
 
@@ -43,8 +42,8 @@ pub fn execute_blocking(client: client.Client, cmd: BitArray, timeout: Int) {
   )
 
   process.new_selector()
-  |> process.selecting(my_subject, function.identity)
-  |> process.select_forever
+  |> process.select(my_subject)
+  |> process.selector_receive_forever
   |> fn(reply) {
     case reply {
       Ok([resp.SimpleError(error)]) | Ok([resp.BulkError(error)]) ->
@@ -61,8 +60,8 @@ pub fn receive_forever(client: client.Client, timeout: Int, rest) {
     lifeguard.send(client, client.ReceiveForever(my_subject, timeout), timeout)
 
   process.new_selector()
-  |> process.selecting(my_subject, function.identity)
-  |> process.select_forever
+  |> process.select(my_subject)
+  |> process.selector_receive_forever
   |> fn(reply) {
     case reply {
       Ok([resp.SimpleError(error)]) | Ok([resp.BulkError(error)]) -> {
